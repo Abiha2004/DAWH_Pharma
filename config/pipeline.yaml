@@ -1,0 +1,60 @@
+# ---------------------------------------------------------------------------
+# Pharma Cold-Chain DWH - central pipeline configuration
+# Every DAG and script reads this file, so behaviour changes here, not in code.
+# ---------------------------------------------------------------------------
+project: pharma_cold_chain_dwh
+phase: 1                     # 1 = Sales & Demand Intelligence (SDI) mart
+
+paths:
+  source: data/source        # the 7 original CSV files (not committed to git)
+  landing: data/landing      # file-watcher watches this folder
+  archive: data/archive      # successfully ingested files are moved here
+  rejected: data/rejected    # files that failed ingestion are moved here
+  stream: data/stream        # stream events waiting to be replayed
+
+# The 7 source domains. "table" is the bronze (raw) table name.
+sources:
+  master:         {file: 01_master_data,                 table: raw.master_data,            pk: [MedicineID]}
+  manufacturing:  {file: 02_manufacturing_data,          table: raw.manufacturing_data,     pk: [ManufacturingOrderID]}
+  delivery:       {file: 03_manufacturer_delivery_data,  table: raw.manufacturer_delivery,  pk: [ShipmentID, ShipmentLineNumber]}
+  warehouse:      {file: 04_warehouse_data,              table: raw.warehouse_data,         pk: [InventorySnapshotID]}
+  sales:          {file: 05_pharmacy_sales_data,         table: raw.pharmacy_sales,         pk: [SalesTransactionID]}
+  hospital:       {file: 06_hospital_demand_data,        table: raw.hospital_demand,        pk: [HospitalDemandRecordID]}
+  iot:            {file: 07_iot_streaming_data,          table: raw.iot_readings,           pk: [SensorReadingID]}
+
+# Oversampling / refresh windows. Each refresh synthesises one new calendar month
+# for all 7 sources. Phase 1 uses R1 + R2; later phases continue the calendar.
+refreshes:
+  R1: {month: "2026-01", phase: 1}
+  R2: {month: "2026-02", phase: 1}
+  R3: {month: "2026-03", phase: 2}
+  R4: {month: "2026-04", phase: 2}
+  R5: {month: "2026-05", phase: 3}
+  R6: {month: "2026-06", phase: 3}
+
+generator:
+  random_seed: 42
+  yoy_growth: 1.08            # 2025 sales were +9.1% vs 2024; we use a conservative +8%
+  dirty_row_rate: 0.01        # 1% deliberately invalid rows to exercise validation
+  duplicate_rate: 0.002       # 0.2% duplicate primary keys
+  malformed_line_rate: 0.0005 # broken CSV lines (wrong column count)
+  scd_changes:                # SCD Type 2 demonstration in master data
+    R2:
+      - {MedicineID: MED001, field: RecommendedRetailPriceUSD, factor: 1.10}
+      - {MedicineID: MED010, field: RecommendedRetailPriceUSD, factor: 1.12}
+      - {MedicineID: MED055, field: ProductStatus, value: "Under review"}
+  org_changes:
+    R2:
+      - {PharmacyID: PHR014, field: PharmacyName, value: "WellSpring Pharmacy 14 (Rebranded)"}
+
+streaming:
+  max_stream_events: 4000     # e-commerce sales replayed as live events per refresh (rest arrive in the batch file)
+  micro_batch_size: 250       # events per micro-batch
+  micro_batch_interval_s: 1.0 # pause between micro-batches
+  malformed_event_rate: 0.01
+
+validation:                   # thresholds used by quality gates in the DAGs
+  max_reject_rate_pct: 5.0    # fail the run if more than 5% of a batch is rejected
+  min_sale_date: "2023-01-01"
+  max_sale_date: "2027-12-31"
+  money_tolerance: 0.02

@@ -1,0 +1,31 @@
+digraph ARCH {
+  graph [rankdir=LR, fontname="Inter", nodesep=0.35, ranksep=0.32, dpi=200, bgcolor=white, pad=0.15, newrank=true];
+  node  [fontname="Inter", fontsize=9, shape=box, style="rounded,filled", color="#8a8a8a", margin="0.09,0.05"];
+  edge  [fontname="Inter", fontsize=7.5, color="#5b6b7a", arrowsize=0.6];
+
+  SRC  [label="7 source CSVs\n2023-2025", shape=folder, fillcolor="#ffffff"];
+  GEN  [label="sdi_00\ndata generator\n(oversampling)", fillcolor="#fff2cc"];
+  LAND [label="landing/*.csv\n+ stream/*.jsonl", shape=folder, fillcolor="#ffffff"];
+  ING  [label="sdi_01 batch  ← file-watcher\nsdi_02 stream → FastAPI", fillcolor="#ddebf7"];
+  BR   [label="BRONZE\nraw.*", fillcolor="#f8cbad"];
+  VAL  [label="sdi_03\nvalidation\n+ quality gate", fillcolor="#ddebf7"];
+  SV   [label="SILVER\nstaging.* (ODS)", fillcolor="#e2efda"];
+  TRN  [label="sdi_04\nSCD2 dims →\nfacts", fillcolor="#ddebf7"];
+  GD   [label="GOLD\ndwh.* SDI star", fillcolor="#ffe699"];
+  QRY  [label="sdi_05\nMV refresh +\nbenchmark", fillcolor="#ddebf7"];
+  MT   [label="MART\nmart.mv_*", fillcolor="#fff2cc"];
+  QU   [label="quarantine.*\nrejected rows", fillcolor="#ffffff"];
+  OPS  [label="ops.*  pipeline metrics\n(batch · stream · DQ · storage · query)", fillcolor="#ffffff", color="#c55a11"];
+  GRA  [label="Grafana: 4 DE dashboards\n(auto-refresh 10 s)", fillcolor="#fce4d6", color="#c55a11"];
+
+  SRC -> GEN -> LAND -> ING -> BR;
+  BR -> VAL [label="Dataset\nBRONZE"]; VAL -> SV;
+  SV -> TRN [label="Dataset\nSILVER"]; TRN -> GD;
+  GD -> QRY [label="Dataset\nGOLD"]; QRY -> MT;
+  VAL -> QU [style=dashed];
+  {ING VAL TRN QRY} -> OPS [style=dotted, color="#c55a11", arrowhead=none];
+  OPS -> GRA [color="#c55a11"];
+  {rank=same; VAL; QU}
+  {rank=same; TRN; OPS}
+  {rank=same; QRY; GRA}
+}

@@ -1,0 +1,10 @@
+apiVersion: 1
+providers:
+  - name: pharma-dwh-data-engineering
+    folder: "Pharma DWH - Data Engineering"
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

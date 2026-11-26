@@ -1,0 +1,48 @@
+graph SDI {
+  graph [layout=neato, overlap=false, splines=true, sep="+12", bgcolor="white", fontname="Montserrat", pad=0.3, dpi=170,
+         label="SDI Data Mart - Fact Constellation (gold layer, PostgreSQL schema dwh)", labelloc=t, fontsize=20];
+  node  [shape=plain, fontname="Montserrat", fontsize=10];
+  edge  [color="#5b6b7a", penwidth=1.3, fontname="Montserrat", fontsize=8, fontcolor="#7a4a00"];
+
+  FS [pos="0,0!", label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="3" bgcolor="#FFE699" color="#7f6000">
+    <tr><td bgcolor="#C00000"><font color="white"><b>FACT_PHARMACY_SALES</b></font></td></tr>
+    <tr><td align="left"><i>Transaction grain · 1 row = 1 sale</i></td></tr>
+    <tr><td align="left">Partitioned by year (sale_date_key)</td></tr>
+    <tr><td align="left">FK x14 · DD: sales_transaction_id</td></tr>
+    <tr><td align="left">qty · gross · discount · net · tax</td></tr>
+    <tr><td align="left">COGS · gross margin · returns</td></tr>
+    <tr><td align="left">days_to_expiry_at_sale (non-add.)</td></tr></table>>];
+  FD [pos="7.2,-0.2!", label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="3" bgcolor="#FFE699" color="#7f6000">
+    <tr><td bgcolor="#C00000"><font color="white"><b>FACT_HOSPITAL_DEMAND</b></font></td></tr>
+    <tr><td align="left"><i>Periodic snapshot · hospital × medicine × month</i></td></tr>
+    <tr><td align="left">forecast · requested · approved · received</td></tr>
+    <tr><td align="left">dispensed · consumed · wastage · unfulfilled</td></tr>
+    <tr><td align="left">opening/closing stock (semi-add.)</td></tr>
+    <tr><td align="left">service level % (non-add.)</td></tr></table>>];
+  FI [pos="3.4,-5.4!", label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="3" bgcolor="#FFE699" color="#7f6000">
+    <tr><td bgcolor="#C00000"><font color="white"><b>FACT_INVENTORY_SNAPSHOT</b></font></td></tr>
+    <tr><td align="left"><i>Periodic snapshot · lot × day</i></td></tr>
+    <tr><td align="left">available · closing (semi-add.)</td></tr>
+    <tr><td align="left">shipped · expired · damaged</td></tr>
+    <tr><td align="left">stockout / near-expiry / FEFO flags</td></tr></table>>];
+
+  node [shape=box, style="rounded,filled", fillcolor="#FCE4D6", color="#c55a11", margin="0.12,0.06"];
+  DDATE [pos="3.6,2.6!", label="DIM_DATE  (role-playing)\nsale · delivery · expiry\ndemand month · snapshot", fillcolor="#E2EFDA", color="#548235"];
+  DMED  [pos="3.6,-2.2!", label="DIM_MEDICINE  (SCD Type 2)\nprice · status · class tracked\neffective_from / to · version", fillcolor="#E2EFDA", color="#548235"];
+  DORG  [pos="3.6,0.9!", label="DIM_ORGANIZATION  (SCD2)\npharmacies + hospitals\nregion · beds · size band", fillcolor="#E2EFDA", color="#548235"];
+  DCH   [pos="3.6,4.3!", label="DIM_CHANNEL\nRetail · Hospital Pharmacy\nE-commerce · Hospital Demand", fillcolor="#E2EFDA", color="#548235"];
+  DDIS  [pos="7.6,2.6!", label="DIM_DISEASE\ncategory · ICD-10 · group", fillcolor="#E2EFDA", color="#548235"];
+  DWH   [pos="-0.6,-4.1!", label="DIM_WAREHOUSE\n6 regional DCs · cold zones"];
+  DLOT  [pos="1.4,-3.3!", label="DIM_BATCH_LOT\nlot → production batch\nrelease · expiry · QC"];
+  DSEG  [pos="-3.6,2.4!", label="DIM_CUSTOMER_SEGMENT"];
+  DPAY  [pos="-4.3,0.9!", label="DIM_PAYER"];
+  DPRO  [pos="-4.3,-0.6!", label="DIM_PROMOTION\ncode · type · discount %"];
+  DJS   [pos="-3.6,-2.2!", label="DIM_SALES_PROFILE  (JUNK)\npayment · Rx flag · return\ne-com status · OTIF", fillcolor="#DDEBF7", color="#2f5597"];
+  DJD   [pos="9.6,-1.6!", label="DIM_DEMAND_PROFILE  (JUNK)\nrequest status · formulary", fillcolor="#DDEBF7", color="#2f5597"];
+
+  LEG [pos="9.2,4.3!", shape=plain, style="", label=<<table border="1" cellborder="0" cellpadding="3" color="#999999"><tr><td bgcolor="#E2EFDA">Conformed dimension (shared by 2+ facts)</td></tr><tr><td bgcolor="#FCE4D6">Dimension used by one/two facts</td></tr><tr><td bgcolor="#DDEBF7">Junk dimension</td></tr><tr><td bgcolor="#FFE699">Fact table</td></tr></table>>];
+  FS -- DDATE; FS -- DMED; FS -- DORG; FS -- DCH; FS -- DDIS; FS -- DWH; FS -- DLOT;
+  FS -- DSEG; FS -- DPAY; FS -- DPRO; FS -- DJS;
+  FD -- DDATE; FD -- DMED; FD -- DORG; FD -- DCH; FD -- DDIS; FD -- DJD;
+  FI -- DDATE; FI -- DMED; FI -- DWH; FI -- DLOT;
+}

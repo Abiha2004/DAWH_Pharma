@@ -1,0 +1,1495 @@
+{
+  "uid": "de-batch-ingestion",
+  "title": "1 · Batch Ingestion (Landing CSV → Bronze)",
+  "description": "Batch load duration, rows per batch and success rate for every landed file.",
+  "tags": [
+    "pharma-dwh",
+    "data-engineering",
+    "phase-1"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 3,
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "fiscalYearStartMonth": 0,
+  "templating": {
+    "list": [
+      {
+        "name": "refresh",
+        "label": "Refresh",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "pharma-dwh"
+        },
+        "query": "SELECT DISTINCT refresh_id FROM ops.batch_load_log WHERE refresh_id IS NOT NULL ORDER BY 1",
+        "definition": "SELECT DISTINCT refresh_id FROM ops.batch_load_log",
+        "multi": true,
+        "includeAll": true,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "source",
+        "label": "Source domain",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "pharma-dwh"
+        },
+        "query": "SELECT DISTINCT source_domain FROM ops.batch_load_log WHERE source_domain IS NOT NULL ORDER BY 1",
+        "definition": "SELECT DISTINCT source_domain FROM ops.batch_load_log",
+        "multi": true,
+        "includeAll": true,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "refresh": 2,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 22,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 18,
+        "h": 3
+      },
+      "options": {
+        "mode": "html",
+        "content": "<div style=\"border-left:6px solid #1A3A5E;background:#FFFFFF;padding:10px 18px;border-radius:4px;font-family:Inter,Arial,sans-serif;box-shadow:0 1px 2px rgba(26,58,94,.10)\"><div style=\"font-size:21px;font-weight:700;color:#1A3A5E\">Batch Ingestion · landing files → bronze layer</div><div style=\"font-size:13px;color:#4A5A6A;margin-top:2px\">Every CSV dropped in data/landing/ is detected by the watchdog file-watcher, triggers Airflow and is COPY-loaded into bronze in 50k-row chunks. Load duration = end − start of read + parse + insert.</div><div style=\"font-size:12px;color:#356895;margin-top:6px;font-weight:600\">Use the Refresh and Source-domain filters above · click any source bar to focus on it · 'Reset filters' (top right) clears them</div></div>"
+      }
+    },
+    {
+      "id": 23,
+      "type": "stat",
+      "title": "Last completed refresh",
+      "description": "Most recent refresh that finished end-to-end",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "pharma-dwh"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 3
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#1A3A5E"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^label$/",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "pharma-dwh"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT refresh_id || '  ·  ' || COALESCE(refresh_month, '') || '  ·  ' || to_char(finished_at, 'DD Mon HH24:MI') AS label FROM ops.refresh_log WHERE status = 'SUCCESS' ORDER BY finished_at DESC LIMIT 1"
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "type": "stat",
+      "title": "⬆ Rows processed",
+      "description": "Rows read from the files (incl. malformed)",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "pharma-dwh"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 3,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#1A3A5E"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "pharma-dwh"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE(sum(rows_read),0) FROM ops.batch_load_log WHERE ingest_mode = 'batch' AND refresh_id IN ($refresh) AND source_domain IN ($source)"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "type": "stat",
+      "title": "✔ Rows loaded",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "pharma-dwh"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 3,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#356895"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "pharma-dwh"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE(sum(rows_loaded),0) FROM ops.batch_load_log WHERE ingest_mode = 'batch' AND refresh_id IN ($refresh) AND source_domain IN ($source)"
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "type": "stat",
+      "title": "⚠ Malformed lines",
+      "description": "Lines with the wrong number of fields - skipped and counted",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "pharma-dwh"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 3,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#1A3A5E",
+                "value": null
+              },
+              {
+                "color": "#FF9300",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "pharma-dwh"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE(sum(rows_malformed),0) FROM ops.batch_load_log WHERE ingest_mode = 'batch' AND refresh_id IN ($refresh) AND source_domain IN ($source)"
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "type": "stat",
+      "title": "◎ Batch success rate",
+      "description": "(successful runs / attempted runs) × 100",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "pharma-dwh"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 3,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#C76F00",
+                "value": null
+              },
+              {
+                "color": "#FF9300",
+                "value": 95
+              },
+              {
+                "color": "#1A3A5E",
+                "value": 99
+              }
+            ]
+          },
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "pharma-dwh"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT 100.0 * count(*) FILTER (WHERE status IN ('SUCCESS','SKIPPED_DUPLICATE')) / NULLIF(count(*) FILTER (WHERE status <> 'RUNNING'),0) FROM ops.batch_load_log WHERE ingest_mode = 'batch' AND refresh_id IN ($refresh) AND source_domain IN ($source)"
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "type": "stat",
+      "title": "⛁ Ingestion volume",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "pharma-dwh"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 3,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "decmbytes",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#1A3A5E"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "pharma-dwh"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE(sum(file_size_mb),0) FROM ops.batch_load_log WHERE ingest_mode = 'batch' AND refresh_id IN ($refresh) AND source_domain IN ($source) AND status = 'SUCCESS'"
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "type": "stat",
+      "title": "⏱ Total load time",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "pharma-dwh"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 3,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#1A3A5E"
+          },
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "pharma-dwh"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE(sum(duration_s),0) FROM ops.batch_load_log WHERE ingest_mode = 'batch' AND refresh_id IN ($refresh) AND source_domain IN ($source) AND status = 'SUCCESS'"
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "type": "row",
+      "title": "Which files are slowest, and which sources load reliably?",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 7,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 31,
+      "type": "bargauge",
+      "title": "Load duration per source file - where is the bottleneck?",
+      "description": "Recommended chart. Darker = slower. Click a bar to filter the dashboard to that source.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "pharma-dwh"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 14,
+        "h": 11
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              {
+                "color": "#C2DCEC",
+                "value": null
+              },
+              {
+                "color": "#93BCD9",
+                "value": 20
+              },
+              {
+                "color": "#5F93BE",
+                "value": 40
+              },
+              {
+                "color": "#356895",
+                "value": 60
+              },
+              {
+                "color": "#1A3A5E",
+                "value": 80
+              }
+            ]
+          },
+          "decimals": 2,
+          "links": [
+            {
+              "title": "Show only this source",
+              "url": "/d/de-batch-ingestion?var-source=${__data.fields.source}&${refresh:queryparam}&${__url_time_range}"
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true,
+        "valueMode": "color",
+        "namePlacement": "left",
+        "sizing": "manual",
+        "minVizHeight": 14,
+        "maxVizHeight": 22,
+        "minVizWidth": 8,
+        "text": {
+          "titleSize": 12,
+          "valueSize": 14
+        },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "pharma-dwh"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT source_domain AS source, source_domain || '  ·  ' || refresh_id AS file, duration_s\nFROM ops.batch_load_log WHERE ingest_mode = 'batch' AND refresh_id IN ($refresh) AND source_domain IN ($source) AND status = 'SUCCESS' ORDER BY duration_s DESC"
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "type": "bargauge",
+      "title": "Load success rate by source domain",
+      "description": "Green ≥ 99 %, amber ≥ 95 %, red below. Idempotent duplicate skips count as success.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "pharma-dwh"
+      },
+      "gridPos": {
+        "x": 14,
+        "y": 8,
+        "w": 10,
+        "h": 11
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#C76F00",
+                "value": null
+              },
+              {
+                "color": "#FF9300",
+                "value": 95
+              },
+              {
+                "color": "#1A3A5E",
+                "value": 99
+              }
+            ]
+          },
+          "decimals": 1,
+          "max": 100,
+          "links": [
+            {
+              "title": "Show only this source",
+              "url": "/d/de-batch-ingestion?var-source=${__data.fields.source}&${refresh:queryparam}&${__url_time_range}"
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true,
+        "valueMode": "color",
+        "namePlacement": "left",
+        "sizing": "manual",
+        "minVizHeight": 14,
+        "maxVizHeight": 22,
+        "minVizWidth": 8,
+        "text": {
+          "titleSize": 12,
+          "valueSize": 14
+        },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "pharma-dwh"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT source_domain AS source,\n       round(100.0 * count(*) FILTER (WHERE status IN ('SUCCESS','SKIPPED_DUPLICATE')) / NULLIF(count(*) FILTER (WHERE status <> 'RUNNING'),0), 1) AS success_pct\nFROM ops.batch_load_log WHERE ingest_mode = 'batch' AND refresh_id IN ($refresh) AND source_domain IN ($source) GROUP BY 1 ORDER BY 2, 1"
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "type": "row",
+      "title": "How much did each refresh bring in?  ·  Warehouse feed",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 34,
+      "type": "table",
+      "title": "Rows loaded per source and refresh (heatmap)",
+      "description": "Replaces a misleading 'rows over time' line: each refresh is one load event, so a matrix compares them honestly",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "pharma-dwh"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 13,
+        "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true,
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "R0 history"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "#C2DCEC",
+                      "value": null
+                    },
+                    {
+                      "color": "#93BCD9",
+                      "value": 20
+                    },
+                    {
+                      "color": "#5F93BE",
+                      "value": 40
+                    },
+                    {
+                      "color": "#356895",
+                      "value": 60
+                    },
+                    {
+                      "color": "#1A3A5E",
+                      "value": 80
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "R1"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "#C2DCEC",
+                      "value": null
+                    },
+                    {
+                      "color": "#93BCD9",
+                      "value": 20
+                    },
+                    {
+                      "color": "#5F93BE",
+                      "value": 40
+                    },
+                    {
+                      "color": "#356895",
+                      "value": 60
+                    },
+                    {
+                      "color": "#1A3A5E",
+                      "value": 80
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "R2"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "#C2DCEC",
+                      "value": null
+                    },
+                    {
+                      "color": "#93BCD9",
+                      "value": 20
+                    },
+                    {
+                      "color": "#5F93BE",
+                      "value": 40
+                    },
+                    {
+                      "color": "#356895",
+                      "value": 60
+                    },
+                    {
+                      "color": "#1A3A5E",
+                      "value": 80
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Total"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "#C2DCEC",
+                      "value": null
+                    },
+                    {
+                      "color": "#93BCD9",
+                      "value": 20
+                    },
+                    {
+                      "color": "#5F93BE",
+                      "value": 40
+                    },
+                    {
+                      "color": "#356895",
+                      "value": 60
+                    },
+                    {
+                      "color": "#1A3A5E",
+                      "value": 80
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Avg rows / s"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "gradient",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "#C2DCEC",
+                      "value": null
+                    },
+                    {
+                      "color": "#93BCD9",
+                      "value": 20
+                    },
+                    {
+                      "color": "#5F93BE",
+                      "value": 40
+                    },
+                    {
+                      "color": "#356895",
+                      "value": 60
+                    },
+                    {
+                      "color": "#1A3A5E",
+                      "value": 80
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "pharma-dwh"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT source_domain AS \"Source domain\",\n       sum(rows_loaded) FILTER (WHERE refresh_id = 'R0') AS \"R0 history\",\n       sum(rows_loaded) FILTER (WHERE refresh_id = 'R1') AS \"R1\",\n       sum(rows_loaded) FILTER (WHERE refresh_id = 'R2') AS \"R2\",\n       sum(rows_loaded) AS \"Total\", round(avg(rows_per_sec) FILTER (WHERE rows_loaded > 1000)) AS \"Avg rows / s\"\nFROM ops.batch_load_log WHERE ingest_mode = 'batch' AND refresh_id IN ($refresh) AND source_domain IN ($source) AND status = 'SUCCESS' GROUP BY 1 ORDER BY \"Total\" DESC"
+        }
+      ]
+    },
+    {
+      "id": 35,
+      "type": "bargauge",
+      "title": "Warehouse feed - inventory snapshot rows ingested per warehouse",
+      "description": "Rows of file 04 landed per distribution centre - darker = more lots tracked",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "pharma-dwh"
+      },
+      "gridPos": {
+        "x": 13,
+        "y": 20,
+        "w": 11,
+        "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              {
+                "color": "#C2DCEC",
+                "value": null
+              },
+              {
+                "color": "#93BCD9",
+                "value": 20
+              },
+              {
+                "color": "#5F93BE",
+                "value": 40
+              },
+              {
+                "color": "#356895",
+                "value": 60
+              },
+              {
+                "color": "#1A3A5E",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true,
+        "valueMode": "color",
+        "namePlacement": "top",
+        "sizing": "manual",
+        "minVizHeight": 14,
+        "maxVizHeight": 22,
+        "minVizWidth": 8,
+        "text": {
+          "titleSize": 12,
+          "valueSize": 14
+        },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "pharma-dwh"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT r.\"WarehouseName\" AS warehouse, count(*) AS rows\nFROM raw.warehouse_data r JOIN ops.batch_load_log b ON b.batch_id = r._batch_id\nWHERE b.refresh_id IN ($refresh) GROUP BY 1 ORDER BY 2 DESC"
+        }
+      ]
+    },
+    {
+      "id": 36,
+      "type": "row",
+      "title": "Ingestion run history (detail)",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 29,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 37,
+      "type": "table",
+      "title": "Every file load - newest first",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "pharma-dwh"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 30,
+        "w": 24,
+        "h": 10
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true,
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Malformed"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "#FFE7C2",
+                      "value": null
+                    },
+                    {
+                      "color": "#FFD08A",
+                      "value": 20
+                    },
+                    {
+                      "color": "#FFB852",
+                      "value": 40
+                    },
+                    {
+                      "color": "#FF9300",
+                      "value": 60
+                    },
+                    {
+                      "color": "#C76F00",
+                      "value": 80
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Rows loaded"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "gradient",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "#C2DCEC",
+                      "value": null
+                    },
+                    {
+                      "color": "#93BCD9",
+                      "value": 20
+                    },
+                    {
+                      "color": "#5F93BE",
+                      "value": 40
+                    },
+                    {
+                      "color": "#356895",
+                      "value": 60
+                    },
+                    {
+                      "color": "#1A3A5E",
+                      "value": 80
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Duration"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "gradient",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "#C2DCEC",
+                      "value": null
+                    },
+                    {
+                      "color": "#93BCD9",
+                      "value": 20
+                    },
+                    {
+                      "color": "#5F93BE",
+                      "value": 40
+                    },
+                    {
+                      "color": "#356895",
+                      "value": 60
+                    },
+                    {
+                      "color": "#1A3A5E",
+                      "value": 80
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "SUCCESS": {
+                        "color": "#1A3A5E",
+                        "index": 0,
+                        "text": "✔ Success"
+                      },
+                      "SKIPPED_DUPLICATE": {
+                        "color": "#5F93BE",
+                        "index": 1,
+                        "text": "↺ Skipped (duplicate)"
+                      },
+                      "RUNNING": {
+                        "color": "#FF9300",
+                        "index": 2,
+                        "text": "⟳ Running"
+                      },
+                      "FAILED": {
+                        "color": "#C76F00",
+                        "index": 3,
+                        "text": "✖ Failed"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Batch"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 60
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Refresh"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 70
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Source"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 110
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "File"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 250
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Size"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 80
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Started"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 125
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Size"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "decmbytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Duration"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "pharma-dwh"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT batch_id AS \"Batch\", refresh_id AS \"Refresh\", source_domain AS \"Source\", file_name AS \"File\",\n       file_size_mb AS \"Size\", rows_loaded AS \"Rows loaded\", rows_malformed AS \"Malformed\", duration_s AS \"Duration\",\n       rows_per_sec AS \"Rows / s\", status AS \"Status\", to_char(start_ts, 'DD Mon HH24:MI:SS') AS \"Started\", error_message AS \"Note\"\nFROM ops.batch_load_log WHERE ingest_mode = 'batch' AND refresh_id IN ($refresh) AND source_domain IN ($source) ORDER BY batch_id DESC"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "title": "Reset filters",
+      "type": "link",
+      "url": "/d/de-batch-ingestion",
+      "icon": "sync",
+      "targetBlank": false,
+      "keepTime": true,
+      "includeVars": false,
+      "tooltip": "Clear all filters"
+    },
+    {
+      "title": "All data-engineering dashboards",
+      "type": "dashboards",
+      "tags": [
+        "data-engineering"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": true
+    }
+  ]
+}
